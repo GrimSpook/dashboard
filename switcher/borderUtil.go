@@ -22,11 +22,25 @@ var (
 		ExtendSideLeft:  "┫",
 	}
 
+	BorderSideDouble = BorderSideChars{
+		Horizontal:      "═",
+		Vertical:        "║",
+		ExtendSideRight: "╠",
+		ExtendSideLeft:  "╣",
+	}
+
 	BorderCornorRound = BorderCornorChars{
 		TopLeft:     "╭",
 		TopRight:    "╮",
 		BottomLeft:  "╰",
 		BottomRight: "╯",
+	}
+
+	BorderCornorDouble = BorderCornorChars{
+		TopLeft:     "╔",
+		TopRight:    "╗",
+		BottomLeft:  "╚",
+		BottomRight: "╝",
 	}
 
 	BorderCornorThin = BorderCornorChars{
