@@ -18,7 +18,7 @@ func DefaultStyles(width, height int) *Styles {
 
 	s := new(Styles)
 
-	s.selectedColor = lipgloss.Color("#ff605a")
+	s.selectedColor = lipgloss.Color("#db6363")
 
 	s.listItem = lipgloss.NewStyle()
 

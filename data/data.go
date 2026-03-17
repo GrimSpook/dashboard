@@ -1,7 +1,6 @@
-package switcher
+package data
 
 import (
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,75 +8,47 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/go-git/go-git/v5"
-	"github.com/sahilm/fuzzy"
 )
 
-func generateUUID() string {
-	b := make([]byte, 16)
-	rand.Read(b)
-
-	b[6] = (b[6] & 0x0f) | 0x40
-	b[8] = (b[8] & 0x3f) | 0x80
-
-	return fmt.Sprintf("%x-%x-%x-%x-%x",
-		b[0:4], b[4:6], b[6:8], b[8:10], b[10:16])
+type Section struct {
+	Title string
+	Icon  string
+	List  []Workspace
 }
 
-func FdSearch(dir string) ([]Workspace, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return nil, err
-	}
-
-	baseDir := filepath.Join(home, dir)
-
-	var dirs []string
-
-	out, err := exec.Command("fd", "-Hs", "^.git$", "-td", "--prune", "--format", "{//}", baseDir).Output()
-	if err != nil {
-		return nil, err
-	}
-
-	dirs = strings.Split(string(out), "\n")
-	dirs = dirs[:len(dirs)-1]
-
-	var wsl []Workspace
-
-	for _, workspaceDirs := range dirs {
-
-		bn, err := branch(workspaceDirs)
-		if err != nil {
-			fmt.Println(workspaceDirs)
-		}
-
-		wsName := strings.ReplaceAll(filepath.Base(workspaceDirs), "-", " ")
-		wsl = append(wsl, Workspace{Title: wsName, Path: workspaceDirs, Branch: bn, Id: generateUUID()})
-	}
-
-	return wsl, nil
+type Workspace struct {
+	Title  string
+	Path   string
+	Branch string
+	Id     string
 }
 
-func branch(path string) (string, error) {
-	repo, err := git.PlainOpen(path)
-	if err != nil {
-		return "", err
-	}
-
-	head, err := repo.Head()
-	if err != nil {
-		return "", err
-	}
-
-	return head.Name().Short(), nil
+type weztermCliJson struct {
+	Window_id float64 `json:"window_id"`
+	Tab_id    float64 `json:"tab_id"`
+	Pane_id   float64 `json:"pane_id"`
+	Workspace string  `json:"workspace"`
+	// Size              map[string]size `json:"size"`
+	Title             string  `json:"title"`
+	Cwd               string  `json:"cwd"`
+	Cursor_x          float64 `json:"cursor_x"`
+	Cursor_y          float64 `json:"cursor_y"`
+	Cursor_shape      string  `json:"cursor_shape"`
+	Cursor_visibility string  `json:"cursor_visibility"`
+	Left_col          float64 `json:"left_col"`
+	Top_row           float64 `json:"top_row"`
+	Tab_title         string  `json:"tab_title"`
+	Window_title      string  `json:"window_title"`
+	Is_active         bool    `json:"is_active"`
+	Is_zoomed         bool    `json:"is_zoomed"`
+	Tty_name          string  `json:"tty_name"`
 }
 
 func GenerateSections() []Section {
 	openWorkspaceList, err := getOpenWorkspaces()
 	configWorkspacesList, err := getConfigDirs()
-	personalWorkspaceList, err := FdSearch(filepath.Join("dev", "personal"))
-	schoolWorkspaceList, err := FdSearch(filepath.Join("dev", "school"))
+	personalWorkspaceList, err := fdSearch(filepath.Join("dev", "personal"))
+	schoolWorkspaceList, err := fdSearch(filepath.Join("dev", "school"))
 	// zoxideList := getZoxidPaths()
 	if err != nil {
 		log.Fatal(err)
@@ -86,18 +57,22 @@ func GenerateSections() []Section {
 	return []Section{
 		{
 			Title: "Open",
+			Icon:  "",
 			List:  openWorkspaceList,
 		},
 		{
 			Title: "Configs",
+			Icon:  "",
 			List:  configWorkspacesList,
 		},
 		{
 			Title: "Personal",
+			Icon:  "",
 			List:  personalWorkspaceList,
 		},
 		{
 			Title: "School",
+			Icon:  "",
 			List:  schoolWorkspaceList,
 		},
 		// {
@@ -128,7 +103,7 @@ func getConfigDirs() ([]Workspace, error) {
 	return wsl, nil
 }
 
-func mergeSectionWorkspaces(sections []Section) []Workspace {
+func MergeSectionWorkspaces(sections []Section) []Workspace {
 	var workspaces []Workspace
 	for _, section := range sections {
 		workspaces = append(workspaces, section.List...)
@@ -180,31 +155,6 @@ func getOpenWorkspaces() ([]Workspace, error) {
 	return wsl, nil
 }
 
-func (m Model) Filter(query string, workspaces []Workspace) []Workspace {
-	if query == "" {
-		return workspaces
-	}
-
-	titles := make([]string, len(workspaces))
-	for i, w := range workspaces {
-		titles[i] = w.Title
-	}
-
-	matches := fuzzy.Find(query, titles)
-
-	wsMap := make(map[string]Workspace)
-	for _, w := range workspaces {
-		wsMap[w.Title] = w
-	}
-
-	filtered := make([]Workspace, 0, len(matches))
-	for _, match := range matches {
-		filtered = append(filtered, wsMap[match.Str])
-	}
-
-	return filtered
-}
-
 func getZoxidPaths() []Workspace {
 	out, err := exec.Command("zoxide", "query", "-l").Output()
 	if err != nil {
@@ -223,24 +173,4 @@ func getZoxidPaths() []Workspace {
 	}
 
 	return ws
-}
-
-func base(slice []string) []string {
-	s := []string{}
-	for _, str := range slice {
-		s = append(s, filepath.Base(str))
-	}
-	return s
-}
-
-func removeDuplicates(slice []string) []string {
-	dedupMap := make(map[string]bool)
-	result := []string{}
-	for _, value := range slice {
-		if !dedupMap[value] {
-			dedupMap[value] = true
-			result = append(result, value)
-		}
-	}
-	return result
 }

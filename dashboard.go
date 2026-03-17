@@ -1,6 +1,7 @@
 package main
 
 import (
+	"dashboard/data"
 	"dashboard/switcher"
 
 	tea "charm.land/bubbletea/v2"
@@ -23,7 +24,7 @@ func initModel() Model {
 	// 	{Title: "󰕮", Id: 3},
 	// }
 
-	l := switcher.GenerateSections()
+	l := data.GenerateSections()
 
 	// s := sidebar.New(items, 0, 0)
 	sw := switcher.New(l, 70, 30)
@@ -65,11 +66,11 @@ func (m Model) View() tea.View {
 	var v tea.View
 	v.AltScreen = true
 
-	s := "\n// SEARCH \n"
+	// s := "\n// SEARCH \n"
 
-	str := lipgloss.JoinVertical(lipgloss.Top, s, m.switcher.View())
+	str := lipgloss.JoinVertical(lipgloss.Top, m.switcher.View())
 
-	wr := lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Top, str)
+	wr := lipgloss.Place(m.width, m.height, lipgloss.Left, lipgloss.Top, str)
 
 	v.SetContent(wr)
 

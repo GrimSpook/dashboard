@@ -1,37 +1,10 @@
 package switcher
 
-type Section struct {
-	Title string
-	List  []Workspace
-}
+import (
+	"dashboard/data"
 
-type Workspace struct {
-	Title  string
-	Path   string
-	Branch string
-	Id     string
-}
-
-type weztermCliJson struct {
-	Window_id float64 `json:"window_id"`
-	Tab_id    float64 `json:"tab_id"`
-	Pane_id   float64 `json:"pane_id"`
-	Workspace string  `json:"workspace"`
-	// Size              map[string]size `json:"size"`
-	Title             string  `json:"title"`
-	Cwd               string  `json:"cwd"`
-	Cursor_x          float64 `json:"cursor_x"`
-	Cursor_y          float64 `json:"cursor_y"`
-	Cursor_shape      string  `json:"cursor_shape"`
-	Cursor_visibility string  `json:"cursor_visibility"`
-	Left_col          float64 `json:"left_col"`
-	Top_row           float64 `json:"top_row"`
-	Tab_title         string  `json:"tab_title"`
-	Window_title      string  `json:"window_title"`
-	Is_active         bool    `json:"is_active"`
-	Is_zoomed         bool    `json:"is_zoomed"`
-	Tty_name          string  `json:"tty_name"`
-}
+	"github.com/sahilm/fuzzy"
+)
 
 func (m *Model) scrollToSelected() {
 	lineNumber := 0
@@ -114,4 +87,29 @@ func (m Model) moveDown() string {
 	}
 
 	return ""
+}
+
+func (m Model) Filter(query string, workspaces []data.Workspace) []data.Workspace {
+	if query == "" {
+		return workspaces
+	}
+
+	titles := make([]string, len(workspaces))
+	for i, w := range workspaces {
+		titles[i] = w.Title
+	}
+
+	matches := fuzzy.Find(query, titles)
+
+	wsMap := make(map[string]data.Workspace)
+	for _, w := range workspaces {
+		wsMap[w.Title] = w
+	}
+
+	filtered := make([]data.Workspace, 0, len(matches))
+	for _, match := range matches {
+		filtered = append(filtered, wsMap[match.Str])
+	}
+
+	return filtered
 }

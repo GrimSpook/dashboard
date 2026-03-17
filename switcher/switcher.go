@@ -1,7 +1,7 @@
 package switcher
 
 import (
-	"image/color"
+	"dashboard/data"
 	"strings"
 
 	"charm.land/bubbles/v2/textinput"
@@ -12,8 +12,8 @@ import (
 
 type Model struct {
 	input      textinput.Model
-	list       []Section
-	filtered   []Section
+	list       []data.Section
+	filtered   []data.Section
 	SelectedId string
 	width      int
 	height     int
@@ -26,14 +26,16 @@ var (
 	borderColorLight = lipgloss.Color("#9f4d58")
 	borderColorDark  = lipgloss.Color("#5a313b")
 
-	// borderColorLight = lipgloss.Color("1")
-	// borderColorDark  = lipgloss.Color("10")
+	// borderColorLight = lipgloss.Color("#707070")
+	// borderColorDark  = lipgloss.Color("#404040")
 
 	sectionTitleStyle = lipgloss.NewStyle().
-				Foreground(borderColorDark).
+				Foreground(borderColorLight).
 				PaddingRight(1)
 
 	mutedStyle = lipgloss.NewStyle().Foreground(borderColorDark)
+
+	mutedTitleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 
 	titleStyle = func() lipgloss.Style {
 		b := lipgloss.NormalBorder()
@@ -56,13 +58,13 @@ var (
 
 	lineStyle = lipgloss.NewStyle().Foreground(borderColorDark)
 
-	pathStyle = lipgloss.NewStyle().Foreground(borderColorLight)
+	pathStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 )
 
-func New(sections []Section, width int, height int) Model {
+func New(sections []data.Section, width int, height int) Model {
 
 	i := textinput.New()
-	i.Placeholder = "Search…"
+	i.Placeholder = ""
 	i.SetVirtualCursor(true)
 	i.Focus()
 	i.CharLimit = 156
@@ -103,12 +105,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		footerHeight := lipgloss.Height(m.footerView())
 		verticalMarginHeight := headerHeight + footerHeight
 
-		widthOffset := 20
-		heightOffset := 4
+		widthOffset := 2
+		heightOffset := 2
 		width := (msg.Width - widthOffset) / 2
-		height := (msg.Height - verticalMarginHeight - heightOffset) / 2
+		height := (msg.Height - verticalMarginHeight - heightOffset)
 
-		// m.input.SetWidth(width)
+		m.input.SetWidth(width - 3)
 
 		if !m.ready {
 
@@ -152,7 +154,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.input, cmd = m.input.Update(msg)
 
 			value := m.input.Value()
-			newSections := []Section{}
+			newSections := []data.Section{}
 			for _, section := range m.list {
 				section.List = m.Filter(value, section.List)
 				if len(section.List) > 0 {
@@ -172,7 +174,6 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
-	// m.viewport, cmd = m.viewport.Update(msg)
 	return m, cmd
 }
 
@@ -185,36 +186,65 @@ func (m Model) View() string {
 
 	} else {
 
-		wrapper = lipgloss.JoinVertical(lipgloss.Left, m.headerView(), m.viewport.View())
+		wrapper = lipgloss.JoinVertical(lipgloss.Left, m.headerView(), m.viewport.View(), m.footerView())
 
 	}
 
-	// t := coloredBorder(wrapper, m.viewport.Width(), m.viewport.Height(), borderColorLight, borderColorDark, "")
+	b := Border(
+		wrapper,
+		withWidth(m.viewport.Width()),
+		withHeight(m.viewport.Height()),
+		withTitleColor(m.styles.selectedColor),
+		withCornorColor(borderColorDark),
+		withSideColor(borderColorDark),
+		withCornorChars(BorderCornorRound),
+		withSideChars(BorderSideThin),
+		withTitle("Switcher"),
+		withTitleRight(true),
+	)
 
-	return m.styles.view.Render(wrapper)
+	return m.styles.view.Render(b)
 }
 
 func (m Model) headerView() string {
 
-	s := " Switcher "
+	// s := " Switcher "
 
-	// in := titleStyle.Render(m.input.View())
-	in := coloredBorder(m.input.View(), m.input.Width()+1, 0, borderColorLight, borderColorDark, "right")
+	in := Border(
+		m.input.View(),
+		withWidth(m.input.Width()+1),
+		// withExtendSide("right"),
+		withTitle("Search"),
+		withTitleColor(m.styles.selectedColor),
+		withCornorColor(borderColorLight),
+		withSideColor(borderColorLight),
+		// withCornorChars(BorderCornorRound),
+		// withSideChars(BorderSideThin),
+	)
 
-	// title := infoStyle.Render("Switcher")
+	// in := m.input.View()
 
-	title := coloredBorder(s, lipgloss.Width(s), 0, borderColorLight, borderColorDark, "left")
+	// offset := lipgloss.Width(in)
 
-	offset := lipgloss.Width(in) + lipgloss.Width(title)
+	// line := strings.Repeat(BorderSideThin.Horizontal, max(0, m.viewport.Width()-offset))
 
-	line := strings.Repeat("─", max(0, m.viewport.Width()-offset))
-	// line := strings.Repeat("━", max(0, m.viewport.Width()-offset))
-
-	return lipgloss.JoinHorizontal(lipgloss.Center, in, lineStyle.Render(line), title)
+	return lipgloss.JoinHorizontal(lipgloss.Center, in)
 }
 
 func (m Model) footerView() string {
-	return ""
+	s := m.GetSelected()
+
+	title := m.sectionHeader("WORKSPACE DATA")
+
+	wr := lipgloss.JoinVertical(
+		lipgloss.Left,
+		"",
+		title,
+		pathStyle.Render(s.Path),
+		s.Branch,
+	)
+
+	return wr
 }
 
 func (m *Model) listView() string {
@@ -222,19 +252,23 @@ func (m *Model) listView() string {
 
 	for _, section := range m.filtered {
 
-		sh := m.sectionHeader(section)
+		icon := section.Icon + " "
 
-		s.WriteString(sh)
+		sh := m.sectionHeader(icon + section.Title)
+
+		s.WriteString(sh + "\n")
 
 		for j, workspace := range section.List {
 
 			itemStr := m.ItemView(workspace)
 
-			l := "├─ "
+			// l := "├─ "
+			l := ""
 
 			newline := ""
 			if len(section.List)-1 == j {
-				l = "└─ "
+				// l = "└─ "
+				l = ""
 				newline = "\n"
 			}
 
@@ -245,37 +279,25 @@ func (m *Model) listView() string {
 	return s.String()
 }
 
-func (m Model) sectionHeader(section Section) string {
+func (m Model) sectionHeader(title string) string {
 
-	text := sectionTitleStyle.Render("" + section.Title)
-	width := m.width
+	text := sectionTitleStyle.Render("" + title)
+	width := m.viewport.Width()
 
 	length := lipgloss.Width(text)
-	rem := width - length
+	rem := max(0, width-length)
 
-	if rem > 0 {
-		sep := mutedStyle.Render(strings.Repeat("─", rem))
-		text = text + "" + sep
-	}
+	sep := mutedStyle.Render(strings.Repeat(BorderSideThin.Horizontal, rem))
+	text = text + "" + sep
 
-	return text + "\n"
+	return text + ""
 }
 
-func (m Model) ItemView(workspace Workspace) string {
-	// home, err := os.UserHomeDir()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// p := strings.ReplaceAll(workspace.Path, home, "~")
+func (m Model) ItemView(workspace data.Workspace) string {
 
 	str := workspace.Title
 	title := lipgloss.JoinHorizontal(lipgloss.Center,
 		workspace.Title,
-		// strings.Repeat(" ", 20-lipgloss.Width(workspace.Title)),
-		// workspace.Branch,
-		// strings.Repeat(" ", 20-lipgloss.Width(workspace.Branch)),
-		// pathStyle.Render(p),
 	)
 
 	if m.SelectedId == workspace.Id {
@@ -289,47 +311,13 @@ func (m Model) ItemView(workspace Workspace) string {
 	return str + "\n"
 }
 
-func coloredBorder(content string, width, height int, cornerColor, sideColor color.Color, side string) string {
-	cornerStyle := lipgloss.NewStyle().Foreground(cornerColor)
-	sideStyle := lipgloss.NewStyle().Foreground(sideColor)
-
-	// topLeft := cornerStyle.Render("┌")
-	// topRight := cornerStyle.Render("┐")
-	// bottomLeft := cornerStyle.Render("└")
-	// bottomRight := cornerStyle.Render("┘")
-
-	topLeft := cornerStyle.Render("┏")
-	topRight := cornerStyle.Render("┓")
-	bottomLeft := cornerStyle.Render("┗")
-	bottomRight := cornerStyle.Render("┛")
-
-	// horizontal := sideStyle.Render(strings.Repeat("━", width))
-	horizontal := sideStyle.Render(strings.Repeat("─", width))
-
-	leftVertical := sideStyle.Render("│")
-	// leftVertical := sideStyle.Render("┃")
-
-	if side == "left" {
-		leftVertical = sideStyle.Render("┤")
-		// leftVertical = sideStyle.Render("┫")
+func (m *Model) GetSelected() data.Workspace {
+	l := data.MergeSectionWorkspaces(m.filtered)
+	if len(l) != 0 {
+		filter := data.Find(l, func(w data.Workspace) bool {
+			return w.Id == m.SelectedId
+		})
+		return filter[0]
 	}
-
-	rightVertical := sideStyle.Render("│")
-	// rightVertical := sideStyle.Render("┃")
-
-	if side == "right" {
-		rightVertical = sideStyle.Render("├")
-		// rightVertical = sideStyle.Render("┣")
-	}
-
-	top := topLeft + horizontal + topRight
-	bottom := bottomLeft + horizontal + bottomRight
-
-	lines := strings.Split(content, "\n")
-	var middle strings.Builder
-	for _, line := range lines {
-		middle.WriteString(leftVertical + line + rightVertical + "\n")
-	}
-
-	return top + "\n" + middle.String() + bottom
+	return data.Workspace{}
 }
