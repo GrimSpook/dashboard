@@ -9,24 +9,24 @@ import (
 
 var (
 	BorderSideThin = BorderSideChars{
-		Horizontal:      "─",
-		Vertical:        "│",
-		ExtendSideRight: "├",
-		ExtendSideLeft:  "┤",
+		Horizontal:     "─",
+		Vertical:       "│",
+		ConnectorRight: "├",
+		ConnectorLeft:  "┤",
 	}
 
 	BorderSideThick = BorderSideChars{
-		Horizontal:      "━",
-		Vertical:        "┃",
-		ExtendSideRight: "┣",
-		ExtendSideLeft:  "┫",
+		Horizontal:     "━",
+		Vertical:       "┃",
+		ConnectorRight: "┣",
+		ConnectorLeft:  "┫",
 	}
 
 	BorderSideDouble = BorderSideChars{
-		Horizontal:      "═",
-		Vertical:        "║",
-		ExtendSideRight: "╠",
-		ExtendSideLeft:  "╣",
+		Horizontal:     "═",
+		Vertical:       "║",
+		ConnectorRight: "╠",
+		ConnectorLeft:  "╣",
 	}
 
 	BorderCornorRound = BorderCornorChars{
@@ -66,23 +66,23 @@ type BorderCornorChars struct {
 }
 
 type BorderSideChars struct {
-	Horizontal      string
-	Vertical        string
-	ExtendSideRight string
-	ExtendSideLeft  string
+	Horizontal     string
+	Vertical       string
+	ConnectorRight string
+	ConnectorLeft  string
 }
 
 type BorderStyle struct {
-	CornerColor color.Color
-	SideColor   color.Color
-	TitleColor  color.Color
-	ExtendSide  string
-	Title       string
-	TitleRight  bool
-	SideChar    BorderSideChars
-	CornorChar  BorderCornorChars
-	Width       int
-	Height      int
+	CornerColor   color.Color
+	SideColor     color.Color
+	TitleColor    color.Color
+	ConnectedSide string
+	Title         string
+	TitleRight    bool
+	SideChar      BorderSideChars
+	CornorChar    BorderCornorChars
+	Width         int
+	Height        int
 }
 
 type BorderOption func(*BorderStyle)
@@ -108,7 +108,7 @@ func withTitleRight(right bool) BorderOption {
 }
 
 func withExtendSide(side string) BorderOption {
-	return func(bs *BorderStyle) { bs.ExtendSide = side }
+	return func(bs *BorderStyle) { bs.ConnectedSide = side }
 }
 
 func withWidth(w int) BorderOption {
@@ -130,16 +130,16 @@ func withSideChars(char BorderSideChars) BorderOption {
 func Border(content string, opts ...BorderOption) string {
 
 	style := &BorderStyle{
-		CornerColor: lipgloss.Color("#ffffff"),
-		SideColor:   lipgloss.Color("#ffffff"),
-		TitleColor:  lipgloss.Color("#ffffff"),
-		SideChar:    BorderSideThin,
-		CornorChar:  BorderCornorThick,
-		TitleRight:  false,
-		Width:       80,
-		Height:      0,
-		ExtendSide:  "",
-		Title:       "",
+		CornerColor:   lipgloss.Color("#ffffff"),
+		SideColor:     lipgloss.Color("#ffffff"),
+		TitleColor:    lipgloss.Color("#ffffff"),
+		SideChar:      BorderSideThin,
+		CornorChar:    BorderCornorThick,
+		TitleRight:    false,
+		Width:         80,
+		Height:        0,
+		ConnectedSide: "",
+		Title:         "",
 	}
 
 	for _, opt := range opts {
@@ -182,26 +182,33 @@ func buildTopBorder(opt *BorderStyle, cornorStyle, sideStyle, titleStyle lipglos
 	}
 
 	titleLength := lipgloss.Width(opt.Title)
-	availableSpace := opt.Width - titleLength - 2
-	leftDashes := 1
+	availableSpace := opt.Width - titleLength - 4
+	// leftDashes := 1
 	rightDashes := availableSpace - 1
 
 	if opt.TitleRight {
 
-		horizontal := sideStyle.Render(strings.Repeat(opt.SideChar.Horizontal, max(1, rightDashes))) +
+		horizontal := sideStyle.Render(strings.Repeat(opt.SideChar.Horizontal, max(1, rightDashes))+
+			opt.SideChar.ConnectorLeft) +
 			" " +
 			titleStyle.Render(opt.Title) +
 			" " +
-			sideStyle.Render(strings.Repeat(opt.SideChar.Horizontal, max(1, leftDashes)))
+			sideStyle.Render(opt.SideChar.ConnectorRight+opt.SideChar.Horizontal)
 
 		return topLeft + horizontal + topRight
 	}
 
-	horizontal := sideStyle.Render(strings.Repeat(opt.SideChar.Horizontal, max(1, leftDashes))) +
+	horizontal := sideStyle.Render(opt.SideChar.Horizontal+opt.SideChar.ConnectorLeft) +
 		" " +
 		titleStyle.Render(opt.Title) +
 		" " +
-		sideStyle.Render(strings.Repeat(opt.SideChar.Horizontal, max(1, rightDashes)))
+		sideStyle.Render(opt.SideChar.ConnectorRight+strings.Repeat(opt.SideChar.Horizontal, max(1, rightDashes)))
+
+	// horizontal := sideStyle.Render(strings.Repeat(opt.SideChar.Horizontal, max(1, leftDashes))) +
+	// 	" " +
+	// 	titleStyle.Render(opt.Title) +
+	// 	" " +
+	// 	sideStyle.Render(strings.Repeat(opt.SideChar.Horizontal, max(1, rightDashes)))
 
 	return topLeft + horizontal + topRight
 }
@@ -211,11 +218,11 @@ func buildMiddleContent(content string, opt *BorderStyle, sideStyle lipgloss.Sty
 	rightVertical := sideStyle.Render(opt.SideChar.Vertical)
 
 	// Apply side modifiers
-	if opt.ExtendSide == "left" {
-		leftVertical = sideStyle.Render(opt.SideChar.ExtendSideLeft)
+	if opt.ConnectedSide == "left" {
+		leftVertical = sideStyle.Render(opt.SideChar.ConnectorLeft)
 	}
-	if opt.ExtendSide == "right" {
-		rightVertical = sideStyle.Render(opt.SideChar.ExtendSideRight)
+	if opt.ConnectedSide == "right" {
+		rightVertical = sideStyle.Render(opt.SideChar.ConnectorRight)
 	}
 
 	lines := strings.Split(content, "\n")
@@ -227,6 +234,7 @@ func buildMiddleContent(content string, opt *BorderStyle, sideStyle lipgloss.Sty
 		result.WriteString(line)
 		result.WriteString(rightVertical)
 		result.WriteString("\n")
+
 	}
 
 	return result.String()

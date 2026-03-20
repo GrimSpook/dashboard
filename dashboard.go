@@ -9,7 +9,6 @@ import (
 )
 
 type Model struct {
-	// sidebar  sidebar.Model
 	switcher switcher.Model
 	width    int
 	height   int
@@ -17,16 +16,8 @@ type Model struct {
 
 func initModel() Model {
 
-	// items := []sidebar.Item{
-	// 	{Title: "󰕮", Id: 0},
-	// 	{Title: "󰕮", Id: 1},
-	// 	{Title: "󰕮", Id: 2},
-	// 	{Title: "󰕮", Id: 3},
-	// }
-
 	l := data.GenerateSections()
 
-	// s := sidebar.New(items, 0, 0)
 	sw := switcher.New(l, 70, 30)
 
 	return Model{

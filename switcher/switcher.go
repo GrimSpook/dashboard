@@ -23,14 +23,13 @@ type Model struct {
 }
 
 var (
-	borderColorLight = lipgloss.Color("#9f4d58")
-	borderColorDark  = lipgloss.Color("#5a313b")
+	borderColorLight = lipgloss.Color("7")
+	borderColorDark  = lipgloss.Color("8")
 
-	// borderColorLight = lipgloss.Color("#707070")
-	// borderColorDark  = lipgloss.Color("#404040")
+	TitleColor = lipgloss.Color("1")
 
 	sectionTitleStyle = lipgloss.NewStyle().
-				Foreground(borderColorLight).
+				Foreground(borderColorDark).
 				PaddingRight(1)
 
 	mutedStyle = lipgloss.NewStyle().Foreground(borderColorDark)
@@ -102,15 +101,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		headerHeight := lipgloss.Height(m.headerView())
-		footerHeight := lipgloss.Height(m.footerView())
-		verticalMarginHeight := headerHeight + footerHeight
+		// footerHeight := lipgloss.Height(m.preview())
+		verticalMarginHeight := headerHeight
 
 		widthOffset := 2
 		heightOffset := 2
 		width := (msg.Width - widthOffset) / 2
 		height := (msg.Height - verticalMarginHeight - heightOffset)
 
-		m.input.SetWidth(width - 3)
+		m.input.SetWidth(width - 1)
 
 		if !m.ready {
 
@@ -120,6 +119,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.viewport.SetContent(m.listView())
 
 			m.ready = true
+
 		} else {
 			m.viewport.SetWidth(width)
 			m.viewport.SetHeight(height)
@@ -186,24 +186,34 @@ func (m Model) View() string {
 
 	} else {
 
-		wrapper = lipgloss.JoinVertical(lipgloss.Left, m.headerView(), m.viewport.View(), m.footerView())
+		b := Border(
+			m.viewport.View(),
+			withWidth(m.viewport.Width()),
+			withHeight(m.viewport.Height()),
+			withTitleColor(m.styles.selectedColor),
+			withCornorColor(borderColorLight),
+			withSideColor(borderColorDark),
+			withTitle("Workspaces"),
+			withTitleRight(false),
+		)
+
+		left := lipgloss.JoinVertical(lipgloss.Left, m.headerView(), b)
+
+		br := Border(
+			m.preview(),
+			withWidth(m.viewport.Width()-2),
+			withHeight(m.viewport.Height()),
+			withTitleColor(m.styles.selectedColor),
+			withCornorColor(borderColorLight),
+			withSideColor(borderColorDark),
+			withTitle("Preview"),
+		)
+
+		wrapper = lipgloss.JoinHorizontal(lipgloss.Left, left, br)
 
 	}
 
-	b := Border(
-		wrapper,
-		withWidth(m.viewport.Width()),
-		withHeight(m.viewport.Height()),
-		withTitleColor(m.styles.selectedColor),
-		withCornorColor(borderColorDark),
-		withSideColor(borderColorDark),
-		withCornorChars(BorderCornorRound),
-		withSideChars(BorderSideThin),
-		withTitle("Switcher"),
-		withTitleRight(true),
-	)
-
-	return m.styles.view.Render(b)
+	return m.styles.view.Render(wrapper)
 }
 
 func (m Model) headerView() string {
@@ -217,9 +227,10 @@ func (m Model) headerView() string {
 		withTitle("Search"),
 		withTitleColor(m.styles.selectedColor),
 		withCornorColor(borderColorLight),
-		withSideColor(borderColorLight),
-		// withCornorChars(BorderCornorRound),
-		// withSideChars(BorderSideThin),
+		withSideColor(borderColorDark),
+		withTitleRight(false),
+		// withCornorChars(BorderCornorDouble),
+		// withSideChars(BorderSideDouble),
 	)
 
 	// in := m.input.View()
@@ -231,20 +242,21 @@ func (m Model) headerView() string {
 	return lipgloss.JoinHorizontal(lipgloss.Center, in)
 }
 
-func (m Model) footerView() string {
+func (m Model) preview() string {
 	s := m.GetSelected()
 
-	title := m.sectionHeader("WORKSPACE DATA")
+	p := s.Path
+	if len(s.Path) > m.width {
+		p = s.Path[:m.width-1] + "…"
+	}
 
 	wr := lipgloss.JoinVertical(
 		lipgloss.Left,
-		"",
-		title,
-		pathStyle.Render(s.Path),
+		pathStyle.Render(p),
 		s.Branch,
 	)
 
-	return wr
+	return lipgloss.NewStyle().Width(m.viewport.Width() - 2).Height(m.viewport.Height() + 3).Render(wr)
 }
 
 func (m *Model) listView() string {
