@@ -2,7 +2,10 @@ package switcher
 
 import (
 	"dashboard/data"
+	"encoding/base64"
+	"fmt"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/textinput"
 	"charm.land/bubbles/v2/viewport"
@@ -10,16 +13,26 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+type previewData struct {
+	id     string
+	data   string
+	branch string
+	diff   string
+}
+
 type Model struct {
-	input      textinput.Model
-	list       []data.Section
-	filtered   []data.Section
-	SelectedId string
-	width      int
-	height     int
-	styles     *Styles
-	viewport   viewport.Model
-	ready      bool
+	input           textinput.Model
+	list            []data.Section
+	filtered        []data.Section
+	previewData     []previewData
+	SelectedId      string
+	SelectedData    data.Workspace
+	width           int
+	height          int
+	styles          *Styles
+	viewport        viewport.Model
+	previewViewport viewport.Model
+	ready           bool
 }
 
 var (
@@ -58,6 +71,9 @@ var (
 	lineStyle = lipgloss.NewStyle().Foreground(borderColorDark)
 
 	pathStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+
+	diffStylePlus  = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("+")
+	diffStyleMinus = lipgloss.NewStyle().Foreground(lipgloss.Color("13")).Render("-")
 )
 
 func New(sections []data.Section, width int, height int) Model {
@@ -72,14 +88,15 @@ func New(sections []data.Section, width int, height int) Model {
 	i.Prompt = ""
 
 	m := Model{
-		input:      i,
-		list:       sections,
-		filtered:   sections,
-		width:      width,
-		SelectedId: sections[0].List[0].Id,
-		height:     height,
-		styles:     DefaultStyles(width+1, height),
+		input:    i,
+		list:     sections,
+		filtered: sections,
+		width:    width,
+		height:   height,
+		styles:   DefaultStyles(width+1, height),
 	}
+
+	m.setSelected(sections[0].List[0].Id)
 
 	return m
 }
@@ -104,25 +121,43 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		// footerHeight := lipgloss.Height(m.preview())
 		verticalMarginHeight := headerHeight
 
+		previewHeaderHeight := lipgloss.Height(m.previewHeader())
+		previewFooterHeight := lipgloss.Height(m.previewFooter())
+
+		previewVerticalMarginHeight := previewHeaderHeight + previewFooterHeight
+
 		widthOffset := 2
 		heightOffset := 2
 		width := (msg.Width - widthOffset) / 2
 		height := (msg.Height - verticalMarginHeight - heightOffset)
 
+		previewWidth := (msg.Width - (widthOffset + 4)) / 2
+		previewHeight := (msg.Height - previewVerticalMarginHeight - heightOffset)
+
 		m.input.SetWidth(width - 1)
 
 		if !m.ready {
+
+			m.previewViewport = viewport.New(viewport.WithWidth(previewWidth), viewport.WithHeight(previewHeight))
+			m.previewViewport.YPosition = previewHeaderHeight
 
 			m.viewport = viewport.New(viewport.WithWidth(width), viewport.WithHeight(height))
 			m.viewport.YPosition = headerHeight
 
 			m.viewport.SetContent(m.listView())
 
+			m.previewViewport.SetContent(m.previewContent())
+
 			m.ready = true
 
 		} else {
 			m.viewport.SetWidth(width)
 			m.viewport.SetHeight(height)
+
+			m.previewViewport.SetWidth(previewWidth)
+			m.previewViewport.SetHeight(previewHeight)
+
+			m.previewViewport.SetContent(m.previewContent())
 
 			m.viewport.SetContent(m.listView())
 
@@ -136,17 +171,27 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		case "up":
 			newId := m.moveUp()
 			if newId != "" {
-				m.SelectedId = newId
-				m.viewport.SetContent(m.listView())
-				m.scrollToSelected()
+				m.setSelected(newId)
 			}
 
 		case "down":
 			newId := m.moveDown()
 			if newId != "" {
-				m.SelectedId = newId
-				m.viewport.SetContent(m.listView())
-				m.scrollToSelected()
+				m.setSelected(newId)
+
+			}
+
+		case "enter":
+			l := data.MergeSectionWorkspaces(m.filtered)
+			if len(l) != 0 {
+				filter := data.Find(l, func(w data.Workspace) bool {
+					return w.Id == m.SelectedId
+				})
+				selected := filter[0].Path
+				enc := setUserVar(selected)
+				fmt.Print(enc)
+				time.Sleep(500 * time.Millisecond)
+				return m, tea.Quit
 			}
 
 		default:
@@ -164,7 +209,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.filtered = newSections
 
 			if len(m.filtered) > 0 && len(m.filtered[0].List) > 0 {
-				m.SelectedId = m.filtered[0].List[0].Id
+				id := m.filtered[0].List[0].Id
+				m.setSelected(id)
 			}
 
 			m.viewport.SetContent(m.listView())
@@ -175,6 +221,44 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	var cmd tea.Cmd
 	return m, cmd
+}
+
+func setUserVar(value string) string {
+	key := "go-cli"
+
+	encoded := base64.StdEncoding.EncodeToString([]byte(value))
+
+	escape := fmt.Sprintf("\033]1337;SetUserVar=%s=%s\007", key, encoded)
+
+	return escape
+}
+
+func (m *Model) setSelected(newId string) {
+	m.SelectedId = newId
+	m.scrollToSelected()
+
+	item := m.GetSelected(newId)
+
+	m.SelectedData = item
+
+	f := data.Find(m.previewData, func(p previewData) bool {
+		return p.id == newId
+	})
+
+	if len(f) == 0 {
+
+		branch := data.GetCmdOut(item.Path, "git", "branch", "--show-current")
+		diff := data.GetCmdOut(item.Path, "git", "diff", "--stat")
+		plus := strings.ReplaceAll(diff, "+", diffStylePlus)
+		minus := strings.ReplaceAll(plus, "-", diffStyleMinus)
+		data := listDirs(item.Path)
+
+		newData := previewData{id: newId, data: data, branch: branch, diff: minus}
+		m.previewData = append(m.previewData, newData)
+	}
+
+	m.viewport.SetContent(m.listView())
+	m.previewViewport.SetContent(m.previewContent())
 }
 
 func (m Model) View() string {
@@ -200,9 +284,9 @@ func (m Model) View() string {
 		left := lipgloss.JoinVertical(lipgloss.Left, m.headerView(), b)
 
 		br := Border(
-			m.preview(),
-			withWidth(m.viewport.Width()-2),
-			withHeight(m.viewport.Height()),
+			m.previewView(),
+			withWidth(m.previewViewport.Width()),
+			withHeight(m.previewViewport.Height()),
 			withTitleColor(m.styles.selectedColor),
 			withCornorColor(borderColorLight),
 			withSideColor(borderColorDark),
@@ -218,45 +302,17 @@ func (m Model) View() string {
 
 func (m Model) headerView() string {
 
-	// s := " Switcher "
-
 	in := Border(
 		m.input.View(),
 		withWidth(m.input.Width()+1),
-		// withExtendSide("right"),
 		withTitle("Search"),
 		withTitleColor(m.styles.selectedColor),
 		withCornorColor(borderColorLight),
 		withSideColor(borderColorDark),
 		withTitleRight(false),
-		// withCornorChars(BorderCornorDouble),
-		// withSideChars(BorderSideDouble),
 	)
-
-	// in := m.input.View()
-
-	// offset := lipgloss.Width(in)
-
-	// line := strings.Repeat(BorderSideThin.Horizontal, max(0, m.viewport.Width()-offset))
 
 	return lipgloss.JoinHorizontal(lipgloss.Center, in)
-}
-
-func (m Model) preview() string {
-	s := m.GetSelected()
-
-	p := s.Path
-	if len(s.Path) > m.width {
-		p = s.Path[:m.width-1] + "…"
-	}
-
-	wr := lipgloss.JoinVertical(
-		lipgloss.Left,
-		pathStyle.Render(p),
-		s.Branch,
-	)
-
-	return lipgloss.NewStyle().Width(m.viewport.Width() - 2).Height(m.viewport.Height() + 3).Render(wr)
 }
 
 func (m *Model) listView() string {
@@ -323,11 +379,11 @@ func (m Model) ItemView(workspace data.Workspace) string {
 	return str + "\n"
 }
 
-func (m *Model) GetSelected() data.Workspace {
+func (m *Model) GetSelected(id string) data.Workspace {
 	l := data.MergeSectionWorkspaces(m.filtered)
 	if len(l) != 0 {
 		filter := data.Find(l, func(w data.Workspace) bool {
-			return w.Id == m.SelectedId
+			return w.Id == id
 		})
 		return filter[0]
 	}

@@ -7,8 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-
-	"github.com/go-git/go-git/v5"
 )
 
 func generateUUID() string {
@@ -43,19 +41,32 @@ func fdSearch(dir string) ([]Workspace, error) {
 	var wsl []Workspace
 
 	for _, workspaceDirs := range dirs {
-
-		bn, err := branch(workspaceDirs)
-		if err != nil {
-			fmt.Println(workspaceDirs)
+		if workspaceDirs == "" {
+			continue
 		}
 
+		// bn, err := branch(workspaceDirs)
+		// if err != nil {
+		// 	fmt.Println(workspaceDirs)
+		// }
+		//
+		// st, err := status(workspaceDirs)
+		// if err != nil {
+		// 	fmt.Println(workspaceDirs)
+		// }
+
 		wsName := strings.ReplaceAll(filepath.Base(workspaceDirs), "-", " ")
-		wsl = append(wsl, Workspace{Title: wsName, Path: workspaceDirs, Branch: bn, Id: generateUUID()})
+		wsl = append(wsl, Workspace{
+			Title: wsName,
+			Path:  workspaceDirs,
+			// Branch: bn,
+			// Status: st,
+			Id: generateUUID(),
+		})
 	}
 
 	return wsl, nil
 }
-
 
 func base(slice []string) []string {
 	s := []string{}
@@ -98,19 +109,28 @@ func Find[T any](items []T, predicate func(T) bool) []T {
 	return result
 }
 
-//git functions 
-func branch(path string) (string, error) {
-	repo, err := git.PlainOpen(path)
-	if err != nil {
-		return "", err
-	}
-
-	head, err := repo.Head()
-	if err != nil {
-		return "", err
-	}
-
-	return head.Name().Short(), nil
+// git functions
+func Branch(path string) (string, error) {
+	return GetCmdOut(path, "git", "branch", "--show-current"), nil
 }
 
+func GetCmdOut(path string, cmd string, arg ...string) string {
 
+	c := exec.Command(cmd, arg...)
+
+	c.Dir = path
+
+	out, err := c.Output()
+	if err != nil {
+		return ""
+	}
+
+	return string(out)
+}
+
+func Status(path string) (string, error) {
+
+	st := GetCmdOut(path, "git", "status", "--porcelain")
+
+	return st, nil
+}

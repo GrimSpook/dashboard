@@ -83,6 +83,7 @@ type BorderStyle struct {
 	CornorChar    BorderCornorChars
 	Width         int
 	Height        int
+	TitleBold     bool
 }
 
 type BorderOption func(*BorderStyle)
@@ -127,6 +128,10 @@ func withSideChars(char BorderSideChars) BorderOption {
 	return func(bs *BorderStyle) { bs.SideChar = char }
 }
 
+func withTitleBold(bold bool) BorderOption {
+	return func(bs *BorderStyle) { bs.TitleBold = bold }
+}
+
 func Border(content string, opts ...BorderOption) string {
 
 	style := &BorderStyle{
@@ -140,6 +145,7 @@ func Border(content string, opts ...BorderOption) string {
 		Height:        0,
 		ConnectedSide: "",
 		Title:         "",
+		TitleBold:     true,
 	}
 
 	for _, opt := range opts {

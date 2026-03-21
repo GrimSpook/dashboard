@@ -21,6 +21,7 @@ type Workspace struct {
 	Path   string
 	Branch string
 	Id     string
+	Status string
 }
 
 type weztermCliJson struct {
