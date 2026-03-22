@@ -3,10 +3,11 @@ package switcher
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"charm.land/lipgloss/v2"
-	"github.com/epilande/go-devicons"
+	// "github.com/epilande/go-devicons"
 )
 
 var (
@@ -34,7 +35,7 @@ func (m Model) previewHeader() string {
 	for _, data := range m.previewData {
 		if m.SelectedId == data.id {
 
-			b := "git:(" + titleS.Render(strings.Trim(data.branch, "\n")) + ")"
+			b := "" + titleS.Render(strings.Trim(data.branch, "\n")) + ""
 
 			if len(data.branch) == 0 {
 				b = ""
@@ -42,7 +43,7 @@ func (m Model) previewHeader() string {
 
 			s := lipgloss.JoinVertical(lipgloss.Left,
 				"",
-				mutedStyle.Render(b),
+				b,
 				"",
 			)
 
@@ -57,6 +58,10 @@ func (m Model) previewHeader() string {
 func (m Model) previewContent() string {
 	for _, data := range m.previewData {
 		if m.SelectedId == data.id {
+
+			if len(data.branch) == 0 {
+				return data.data
+			}
 
 			di := data.diff
 			if len(data.diff) == 0 && len(data.branch) != 0 {
@@ -88,6 +93,9 @@ func (m Model) previewFooter() string {
 
 func listDirs(path string) string {
 
+	nameStyle := lipgloss.NewStyle()
+	// iconStyle := lipgloss.NewStyle()
+
 	entries, err := os.ReadDir(path)
 	if err != nil {
 		log.Fatalln(err)
@@ -95,13 +103,17 @@ func listDirs(path string) string {
 
 	var str []string
 
-	for _, entry := range entries {
+	base := nameStyle.Foreground(lipgloss.Color("4")).Bold(true)
+
+	str = append(str, base.Render(filepath.Base(path)))
+
+	for i, entry := range entries {
 		info, err := entry.Info()
 		if err != nil {
 			log.Fatalln(err)
 		}
 
-		fileStyle := devicons.IconForInfo(info)
+		// fileStyle := devicons.IconForInfo(info)
 
 		color := lipgloss.Color("15")
 
@@ -111,15 +123,22 @@ func listDirs(path string) string {
 			color = lipgloss.Color("4")
 		}
 
-		fileColor := lipgloss.Color(fileStyle.Color)
+		// fileColor := lipgloss.Color("1")
 
-		name := lipgloss.NewStyle().Foreground(color).Bold(info.IsDir()).Render(entry.Name())
-		icon := lipgloss.NewStyle().Foreground(fileColor).Render(fileStyle.Icon)
+		name := nameStyle.Foreground(color).Bold(info.IsDir()).Render(entry.Name())
+		// icon := iconStyle.Foreground(color).Render(fileStyle.Icon)
+
+		l := "├─ "
+
+		if len(entries)-1 == i {
+			l = "└─ "
+		}
 
 		s := lipgloss.JoinHorizontal(
 			lipgloss.Left,
-			icon,
-			" ",
+			mutedStyle.Render(l),
+			// icon,
+			"",
 			name,
 		)
 
