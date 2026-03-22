@@ -72,8 +72,6 @@ var (
 
 	pathStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 
-	diffStylePlus  = lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("+")
-	diffStyleMinus = lipgloss.NewStyle().Foreground(lipgloss.Color("13")).Render("-")
 )
 
 func New(sections []data.Section, width int, height int) Model {
@@ -248,12 +246,10 @@ func (m *Model) setSelected(newId string) {
 	if len(f) == 0 {
 
 		branch := data.GetCmdOut(item.Path, "git", "branch", "--show-current")
-		diff := data.GetCmdOut(item.Path, "git", "diff", "--stat")
-		plus := strings.ReplaceAll(diff, "+", diffStylePlus)
-		minus := strings.ReplaceAll(plus, "-", diffStyleMinus)
+		diff := data.Diff(item.Path)
 		data := listDirs(item.Path)
 
-		newData := previewData{id: newId, data: data, branch: branch, diff: minus}
+		newData := previewData{id: newId, data: data, branch: branch, diff: diff}
 		m.previewData = append(m.previewData, newData)
 	}
 

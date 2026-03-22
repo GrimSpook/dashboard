@@ -7,6 +7,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"charm.land/lipgloss/v2"
 )
 
 func generateUUID() string {
@@ -110,8 +112,55 @@ func Find[T any](items []T, predicate func(T) bool) []T {
 }
 
 // git functions
-func Branch(path string) (string, error) {
-	return GetCmdOut(path, "git", "branch", "--show-current"), nil
+func Diff(path string) (string) {
+
+	diffStylePlus  := lipgloss.NewStyle().Foreground(lipgloss.Color("2")).Render("+")
+	diffStyleMinus := lipgloss.NewStyle().Foreground(lipgloss.Color("13")).Render("-")
+
+	diff := GetCmdOut(path, "git", "diff", "--stat")
+
+	if len(diff) == 0 {
+		return ""
+	}
+
+	lines := strings.SplitSeq(diff, "\n")
+
+	var str []string
+	for line := range lines {
+
+		if line == "" {
+			continue
+		}
+
+		split := strings.Split(line, "|")
+
+		file := split[0]
+
+		change := ""
+		if len(split) > 1 {
+			plus := strings.ReplaceAll(split[1], "+", diffStylePlus) 
+			minus := strings.ReplaceAll(plus, "-", diffStyleMinus) 
+			change = minus
+		}
+
+		name := strings.Trim(filepath.Base(file), " ")
+
+		nameLength := lipgloss.Width(name)
+		av := 20 - nameLength
+
+		formatName := name + strings.Repeat(" ", max(0, av))
+
+		s := formatName + lipgloss.NewStyle().Foreground(lipgloss.Color("8")).Render("│")  + change
+
+		str = append(str, s)
+	}
+
+	wr := lipgloss.JoinVertical(
+		lipgloss.Left,
+		str...
+	)
+
+	return wr + "\n"
 }
 
 func GetCmdOut(path string, cmd string, arg ...string) string {
@@ -126,11 +175,4 @@ func GetCmdOut(path string, cmd string, arg ...string) string {
 	}
 
 	return string(out)
-}
-
-func Status(path string) (string, error) {
-
-	st := GetCmdOut(path, "git", "status", "--porcelain")
-
-	return st, nil
 }
