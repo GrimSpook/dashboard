@@ -36,10 +36,10 @@ type Model struct {
 }
 
 var (
-	borderColorLight = lipgloss.Color("7")
-	borderColorDark  = lipgloss.Color("8")
+	borderColorLight = lipgloss.Color("#808080")
+	borderColorDark  = lipgloss.Color("#505050")
 
-	TitleColor = lipgloss.Color("1")
+	TitleColor = lipgloss.Color("#ffffff")
 
 	sectionTitleStyle = lipgloss.NewStyle().
 				Foreground(borderColorDark).
@@ -71,7 +71,6 @@ var (
 	lineStyle = lipgloss.NewStyle().Foreground(borderColorDark)
 
 	pathStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
-
 )
 
 func New(sections []data.Section, width int, height int) Model {
@@ -270,11 +269,10 @@ func (m Model) View() string {
 			m.viewport.View(),
 			withWidth(m.viewport.Width()),
 			withHeight(m.viewport.Height()),
-			withTitleColor(m.styles.selectedColor),
+			withTitleColor(TitleColor),
 			withCornorColor(borderColorLight),
 			withSideColor(borderColorDark),
 			withTitle("Workspaces"),
-			withTitleRight(false),
 		)
 
 		left := lipgloss.JoinVertical(lipgloss.Left, m.headerView(), b)
@@ -283,7 +281,7 @@ func (m Model) View() string {
 			m.previewView(),
 			withWidth(m.previewViewport.Width()),
 			withHeight(m.previewViewport.Height()),
-			withTitleColor(m.styles.selectedColor),
+			withTitleColor(TitleColor),
 			withCornorColor(borderColorLight),
 			withSideColor(borderColorDark),
 			withTitle("Preview"),
@@ -302,10 +300,9 @@ func (m Model) headerView() string {
 		m.input.View(),
 		withWidth(m.input.Width()+1),
 		withTitle("Search"),
-		withTitleColor(m.styles.selectedColor),
+		withTitleColor(TitleColor),
 		withCornorColor(borderColorLight),
 		withSideColor(borderColorDark),
-		withTitleRight(false),
 	)
 
 	return lipgloss.JoinHorizontal(lipgloss.Center, in)
