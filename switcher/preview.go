@@ -65,7 +65,7 @@ func (m Model) previewContent() string {
 
 			di := data.diff
 			if len(data.diff) == 0 && len(data.branch) != 0 {
-				di = "No changes\n"
+				di = "Up to date\n"
 			}
 
 			return lipgloss.JoinVertical(
