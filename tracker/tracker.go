@@ -15,7 +15,7 @@ import (
 
 var (
 	mutedStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	selectedStyle = lipgloss.NewStyle().Background(lipgloss.Color("5"))
+	selectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
 	resStyle      = lipgloss.NewStyle()
 	ellipsis      = lipgloss.NewStyle().Bold(true).Render("… ")
 )
@@ -426,7 +426,7 @@ func (m Model) headerView() string {
 		m.formatCatagory("Name", false),
 		m.formatCatagory("Email", false),
 		m.formatCatagory("Updated at", false),
-		m.formatCatagory("Responded", true),
+		m.formatCatagory("Sent Email", true),
 		// m.formatCatagory("Url"),
 	)
 	s := lipgloss.JoinVertical(
