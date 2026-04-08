@@ -1,0 +1,44 @@
+[
+  {
+    "name": "podmanager ai",
+    "email": "me@karllilirud.com",
+    "responded": false,
+    "url": "https://www.padmanager.ai",
+    "updated_at": "2026-04-08 20:52"
+  },
+  {
+    "name": "musikglädjen",
+    "email": "lucas@musikgladjen.se",
+    "responded": false,
+    "url": "https://www.musikgladjen.se",
+    "updated_at": "2026-04-08 21:09"
+  },
+  {
+    "name": "TwoFour",
+    "email": "josefin.aulin@twofour.se",
+    "responded": false,
+    "url": "https://www.twofour.se",
+    "updated_at": "2026-04-08 21:10"
+  },
+  {
+    "name": "Intervaro",
+    "email": "jobb@intervaro.se",
+    "responded": false,
+    "url": "https://www.intervaro.se",
+    "updated_at": "2026-04-08 21:17"
+  },
+  {
+    "name": "djäken startup studio",
+    "email": "lars.widmark@djakne.com",
+    "responded": false,
+    "url": "https://www.djakne.se",
+    "updated_at": "2026-04-08 21:20"
+  },
+  {
+    "name": "Axis",
+    "email": "Per.Wilhelmsson@axis.com",
+    "responded": false,
+    "url": "https://www.axis.com",
+    "updated_at": "2026-04-08 21:22"
+  }
+]

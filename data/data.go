@@ -24,6 +24,14 @@ type Workspace struct {
 	Status string
 }
 
+type Company struct {
+	Name      string `json:"name"`
+	Email     string `json:"email"`
+	Responded bool   `json:"responded"`
+	Url       string `json:"url"`
+	UpdatedAt string `json:"updated_at"`
+}
+
 type weztermCliJson struct {
 	Window_id float64 `json:"window_id"`
 	Tab_id    float64 `json:"tab_id"`
@@ -46,7 +54,7 @@ type weztermCliJson struct {
 }
 
 func GenerateSections() []Section {
-	openWorkspaceList, err := getOpenWorkspaces()
+	// openWorkspaceList, err := getOpenWorkspaces()
 	configWorkspacesList, err := getConfigDirs()
 	personalWorkspaceList, err := fdSearch(filepath.Join("dev", "personal"))
 	schoolWorkspaceList, err := fdSearch(filepath.Join("dev", "school"))
@@ -56,11 +64,11 @@ func GenerateSections() []Section {
 	}
 
 	return []Section{
-		{
-			Title: "Open",
-			Icon:  "",
-			List:  openWorkspaceList,
-		},
+		// {
+		// 	Title: "Open",
+		// 	Icon:  "",
+		// 	List:  openWorkspaceList,
+		// },
 		{
 			Title: "Configs",
 			Icon:  "",
@@ -113,7 +121,7 @@ func MergeSectionWorkspaces(sections []Section) []Workspace {
 	return workspaces
 }
 
-func getOpenWorkspaces() ([]Workspace, error) {
+func GetOpenWorkspaces() ([]Workspace, error) {
 	args := []string{"cli", "list", "--format", "json"}
 
 	out, err := exec.Command("wezterm", args...).Output()

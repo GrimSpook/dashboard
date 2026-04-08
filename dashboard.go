@@ -3,13 +3,16 @@ package main
 import (
 	"dashboard/data"
 	"dashboard/switcher"
+	"dashboard/tracker"
+	"log"
 
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 )
 
 type Model struct {
 	switcher switcher.Model
+	tracker  tracker.Model
+	state    data.DashboardState
 	width    int
 	height   int
 }
@@ -17,11 +20,19 @@ type Model struct {
 func initModel() Model {
 
 	l := data.GenerateSections()
+	ol, err := data.GetOpenWorkspaces()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	sw := switcher.New(l, 70, 30)
+	sw := switcher.New(l, ol, 70, 30)
+
+	tr := tracker.New()
 
 	return Model{
+		state:    data.StateSwitcher,
 		switcher: sw,
+		tracker:  tr,
 	}
 }
 
@@ -33,39 +44,63 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		// m.sidebar.SetHeight(msg.Height)
 		m.switcher.SetHeight(msg.Height)
 		m.switcher.SetWidth(msg.Width)
 		m.width = msg.Width
 		m.height = msg.Height
 
+	case data.UpdateStateMsg:
+		m.state = msg.State
+
 	case tea.KeyPressMsg:
 		switch msg.String() {
-		case "ctrl+c", "esc":
-			return m, tea.Quit
-
+		case "ctrl+s":
+			if m.state == data.StateSwitcher {
+				return m, data.SetState(data.StateTracker, m.width, m.height)
+			} else {
+				return m, data.SetState(data.StateSwitcher, m.width, m.height)
+			}
 		}
 	}
 
 	var cmd tea.Cmd
-	// m.sidebar, cmd = m.sidebar.Update(msg)
-	m.switcher, cmd = m.switcher.Update(msg)
+	switch m.state {
+	case data.StateSwitcher:
+		var cmd tea.Cmd
+		m.switcher, cmd = m.switcher.Update(msg)
+		return m, cmd
+	case data.StateTracker:
+		var cmd tea.Cmd
+		m.tracker, cmd = m.tracker.Update(msg)
+		return m, cmd
+	}
 	return m, cmd
 }
 
 func (m Model) View() tea.View {
-	var v tea.View
-	v.AltScreen = true
 
-	// s := "\n// SEARCH \n"
+	switch m.state {
+	case data.StateHome:
 
-	str := lipgloss.JoinVertical(lipgloss.Top, m.switcher.View())
+		v := tea.NewView("Home")
+		v.AltScreen = true
+		return v
 
-	wr := lipgloss.Place(m.width, m.height, lipgloss.Left, lipgloss.Top, str)
+	case data.StateSwitcher:
 
-	v.SetContent(wr)
+		v := tea.NewView(m.switcher.View())
+		v.AltScreen = true
+		return v
 
-	return v
+	case data.StateTracker:
+
+		v := tea.NewView(m.tracker.View())
+		v.AltScreen = true
+		return v
+
+	default:
+		return tea.NewView("dashboard")
+	}
 }
 
 func (m Model) titleView() string {

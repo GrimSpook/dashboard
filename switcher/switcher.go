@@ -24,6 +24,7 @@ type Model struct {
 	input           textinput.Model
 	list            []data.Section
 	filtered        []data.Section
+	openWorkspaces  []data.Workspace
 	previewData     []previewData
 	SelectedId      string
 	SelectedData    data.Workspace
@@ -73,7 +74,7 @@ var (
 	pathStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 )
 
-func New(sections []data.Section, width int, height int) Model {
+func New(sections []data.Section, openWorkspaces []data.Workspace, width int, height int) Model {
 
 	i := textinput.New()
 	i.Placeholder = ""
@@ -85,12 +86,13 @@ func New(sections []data.Section, width int, height int) Model {
 	i.Prompt = ""
 
 	m := Model{
-		input:    i,
-		list:     sections,
-		filtered: sections,
-		width:    width,
-		height:   height,
-		styles:   DefaultStyles(width+1, height),
+		openWorkspaces: openWorkspaces,
+		input:          i,
+		list:           sections,
+		filtered:       sections,
+		width:          width,
+		height:         height,
+		styles:         DefaultStyles(width+1, height),
 	}
 
 	m.setSelected(sections[0].List[0].Id)
@@ -110,57 +112,67 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
+func (m *Model) setSize(msgWidth, msgHeight int) {
+
+	headerHeight := lipgloss.Height(m.headerView())
+	// footerHeight := lipgloss.Height(m.preview())
+	verticalMarginHeight := headerHeight
+
+	previewHeaderHeight := lipgloss.Height(m.previewHeader())
+	previewFooterHeight := lipgloss.Height(m.previewFooter())
+
+	previewVerticalMarginHeight := previewHeaderHeight + previewFooterHeight
+
+	widthOffset := 2
+	heightOffset := 2
+	width := (msgWidth - widthOffset) / 2
+	height := (msgHeight - verticalMarginHeight - heightOffset)
+
+	previewWidth := (msgWidth - (widthOffset + 3)) / 2
+	previewHeight := (msgHeight - previewVerticalMarginHeight - heightOffset)
+
+	m.input.SetWidth(width - 1)
+
+	if !m.ready {
+
+		m.previewViewport = viewport.New(viewport.WithWidth(previewWidth), viewport.WithHeight(previewHeight))
+		m.previewViewport.YPosition = previewHeaderHeight
+
+		m.viewport = viewport.New(viewport.WithWidth(width), viewport.WithHeight(height))
+		m.viewport.YPosition = headerHeight
+
+		m.viewport.SetContent(m.listView())
+
+		m.previewViewport.SetContent(m.previewContent())
+
+		m.ready = true
+
+	} else {
+		m.viewport.SetWidth(width)
+		m.viewport.SetHeight(height)
+
+		m.previewViewport.SetWidth(previewWidth)
+		m.previewViewport.SetHeight(previewHeight)
+
+		m.previewViewport.SetContent(m.previewContent())
+
+		m.viewport.SetContent(m.listView())
+
+		m.width = width
+		m.height = height
+	}
+
+}
+
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
+
+	case data.UpdateStateMsg:
+		m.setSize(msg.Width, msg.Height)
+
 	case tea.WindowSizeMsg:
-		headerHeight := lipgloss.Height(m.headerView())
-		// footerHeight := lipgloss.Height(m.preview())
-		verticalMarginHeight := headerHeight
-
-		previewHeaderHeight := lipgloss.Height(m.previewHeader())
-		previewFooterHeight := lipgloss.Height(m.previewFooter())
-
-		previewVerticalMarginHeight := previewHeaderHeight + previewFooterHeight
-
-		widthOffset := 2
-		heightOffset := 2
-		width := (msg.Width - widthOffset) / 2
-		height := (msg.Height - verticalMarginHeight - heightOffset)
-
-		previewWidth := (msg.Width - (widthOffset + 4)) / 2
-		previewHeight := (msg.Height - previewVerticalMarginHeight - heightOffset)
-
-		m.input.SetWidth(width - 1)
-
-		if !m.ready {
-
-			m.previewViewport = viewport.New(viewport.WithWidth(previewWidth), viewport.WithHeight(previewHeight))
-			m.previewViewport.YPosition = previewHeaderHeight
-
-			m.viewport = viewport.New(viewport.WithWidth(width), viewport.WithHeight(height))
-			m.viewport.YPosition = headerHeight
-
-			m.viewport.SetContent(m.listView())
-
-			m.previewViewport.SetContent(m.previewContent())
-
-			m.ready = true
-
-		} else {
-			m.viewport.SetWidth(width)
-			m.viewport.SetHeight(height)
-
-			m.previewViewport.SetWidth(previewWidth)
-			m.previewViewport.SetHeight(previewHeight)
-
-			m.previewViewport.SetContent(m.previewContent())
-
-			m.viewport.SetContent(m.listView())
-
-			m.width = width
-			m.height = height
-		}
+		m.setSize(msg.Width, msg.Height)
 
 	case tea.KeyPressMsg:
 		switch msg.String() {
@@ -190,6 +202,9 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				time.Sleep(500 * time.Millisecond)
 				return m, tea.Quit
 			}
+
+		case "esc":
+			return m, tea.Quit
 
 		default:
 			var cmd tea.Cmd
@@ -238,22 +253,22 @@ func (m *Model) setSelected(newId string) {
 
 	m.SelectedData = item
 
-	f := data.Find(m.previewData, func(p previewData) bool {
-		return p.id == newId
-	})
+	// f := data.Find(m.previewData, func(p previewData) bool {
+	// 	return p.id == newId
+	// })
 
-	if len(f) == 0 {
-
-		branch := data.GetCmdOut(item.Path, "git", "branch", "--show-current")
-		diff := data.Diff(item.Path)
-		data := listDirs(item.Path)
-
-		newData := previewData{id: newId, data: data, branch: branch, diff: diff}
-		m.previewData = append(m.previewData, newData)
-	}
+	// if len(f) == 0 {
+	//
+	// 	branch := data.GetCmdOut(item.Path, "git", "branch", "--show-current")
+	// 	diff := data.Diff(item.Path)
+	// 	data := listDirs(item.Path)
+	//
+	// 	newData := previewData{id: newId, data: data, branch: branch, diff: diff}
+	// 	m.previewData = append(m.previewData, newData)
+	// }
 
 	m.viewport.SetContent(m.listView())
-	m.previewViewport.SetContent(m.previewContent())
+	// m.previewViewport.SetContent(m.previewContent())
 }
 
 func (m Model) View() string {
@@ -265,29 +280,23 @@ func (m Model) View() string {
 
 	} else {
 
-		b := Border(
-			m.viewport.View(),
-			withWidth(m.viewport.Width()),
-			withHeight(m.viewport.Height()),
-			withTitleColor(TitleColor),
-			withCornorColor(borderColorLight),
-			withSideColor(borderColorDark),
-			withTitle("Workspaces"),
+		WorkspaceBorderStyle := Border(
+			WithWidth(m.viewport.Width()),
+			WithHeight(m.viewport.Height()),
+			WithTitleColor(TitleColor),
+			WithTitle("Workspaces"),
 		)
 
-		left := lipgloss.JoinVertical(lipgloss.Left, m.headerView(), b)
-
-		br := Border(
-			m.previewView(),
-			withWidth(m.previewViewport.Width()),
-			withHeight(m.previewViewport.Height()),
-			withTitleColor(TitleColor),
-			withCornorColor(borderColorLight),
-			withSideColor(borderColorDark),
-			withTitle("Preview"),
+		previewBorderStyle := Border(
+			WithWidth(m.previewViewport.Width()),
+			WithHeight(m.previewViewport.Height()),
+			WithTitleColor(TitleColor),
+			WithTitle("Preview"),
 		)
 
-		wrapper = lipgloss.JoinHorizontal(lipgloss.Left, left, br)
+		left := lipgloss.JoinVertical(lipgloss.Left, m.headerView(), WorkspaceBorderStyle.Render(m.viewport.View()))
+
+		wrapper = lipgloss.JoinHorizontal(lipgloss.Left, left, previewBorderStyle.Render(m.previewView()))
 
 	}
 
@@ -296,16 +305,13 @@ func (m Model) View() string {
 
 func (m Model) headerView() string {
 
-	in := Border(
-		m.input.View(),
-		withWidth(m.input.Width()+1),
-		withTitle("Search"),
-		withTitleColor(TitleColor),
-		withCornorColor(borderColorLight),
-		withSideColor(borderColorDark),
+	InputBorderStyle := Border(
+		WithWidth(m.input.Width()+1),
+		WithTitle("Search"),
+		WithTitleColor(TitleColor),
 	)
 
-	return lipgloss.JoinHorizontal(lipgloss.Center, in)
+	return lipgloss.JoinHorizontal(lipgloss.Center, InputBorderStyle.Render(m.input.View()))
 }
 
 func (m *Model) listView() string {
@@ -357,16 +363,20 @@ func (m Model) sectionHeader(title string) string {
 func (m Model) ItemView(workspace data.Workspace) string {
 
 	str := workspace.Title
-	title := lipgloss.JoinHorizontal(lipgloss.Center,
+
+	cursor := "  "
+
+	title := lipgloss.JoinHorizontal(lipgloss.Left,
 		workspace.Title,
 	)
 
 	if m.SelectedId == workspace.Id {
+		cursor = m.styles.listItem.Foreground(m.styles.selectedColor).Render(" ")
 		str = m.styles.listItem.Width(m.width).
-			Background(m.styles.selectedColor).
-			Render(title)
+			// Background(m.styles.selectedColor).
+			Render(cursor + title)
 	} else {
-		str = m.styles.listItem.Width(m.width).Render(title)
+		str = m.styles.listItem.Width(m.width).Render(cursor + title)
 	}
 
 	return str + "\n"

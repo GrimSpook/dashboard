@@ -58,6 +58,10 @@ var (
 	}
 )
 
+type BorderRenderer struct {
+	style *BorderStyle
+}
+
 type BorderCornorChars struct {
 	TopLeft     string
 	TopRight    string
@@ -73,93 +77,104 @@ type BorderSideChars struct {
 }
 
 type BorderStyle struct {
-	CornerColor   color.Color
-	SideColor     color.Color
-	TitleColor    color.Color
-	ConnectedSide string
-	Title         string
-	TitleSide     string
-	SideChar      BorderSideChars
-	CornorChar    BorderCornorChars
-	Width         int
-	Height        int
-	TitleBold     bool
+	CornerColor          color.Color
+	SideColor            color.Color
+	TitleColor           color.Color
+	TitleBackgroundColor color.Color
+	ConnectedSide        string
+	Title                string
+	TitleSide            string
+	SideChar             BorderSideChars
+	CornorChar           BorderCornorChars
+	Width                int
+	Height               int
+	TitleBold            bool
 }
 
 type BorderOption func(*BorderStyle)
 
-func withCornorColor(c color.Color) BorderOption {
+func WithCornorColor(c color.Color) BorderOption {
 	return func(bs *BorderStyle) { bs.CornerColor = c }
 }
 
-func withSideColor(c color.Color) BorderOption {
+func WithSideColor(c color.Color) BorderOption {
 	return func(bs *BorderStyle) { bs.SideColor = c }
 }
 
-func withTitleColor(c color.Color) BorderOption {
+func WithTitleColor(c color.Color) BorderOption {
 	return func(bs *BorderStyle) { bs.TitleColor = c }
 }
 
-func withTitle(title string) BorderOption {
+func WithTitleBackgroundColor(c color.Color) BorderOption {
+	return func(bs *BorderStyle) { bs.TitleBackgroundColor = c }
+}
+
+func WithTitle(title string) BorderOption {
 	return func(bs *BorderStyle) { bs.Title = title }
 }
 
-func withTitleSide(side string) BorderOption {
+func WithTitleSide(side string) BorderOption {
 	return func(bs *BorderStyle) { bs.TitleSide = side }
 }
 
-func withTitleBold(bold bool) BorderOption {
+func WithTitleBold(bold bool) BorderOption {
 	return func(bs *BorderStyle) { bs.TitleBold = bold }
 }
 
-func withExtendSide(side string) BorderOption {
+func WithExtendSide(side string) BorderOption {
 	return func(bs *BorderStyle) { bs.ConnectedSide = side }
 }
 
-func withWidth(w int) BorderOption {
+func WithWidth(w int) BorderOption {
 	return func(bs *BorderStyle) { bs.Width = w }
 }
 
-func withHeight(h int) BorderOption {
+func WithHeight(h int) BorderOption {
 	return func(bs *BorderStyle) { bs.Height = h }
 }
 
-func withCornorChars(char BorderCornorChars) BorderOption {
+func WithCornorChars(char BorderCornorChars) BorderOption {
 	return func(bs *BorderStyle) { bs.CornorChar = char }
 }
 
-func withSideChars(char BorderSideChars) BorderOption {
+func WithSideChars(char BorderSideChars) BorderOption {
 	return func(bs *BorderStyle) { bs.SideChar = char }
 }
 
-func Border(content string, opts ...BorderOption) string {
+func Border(opts ...BorderOption) *BorderRenderer {
 
 	style := &BorderStyle{
-		CornerColor:   lipgloss.Color("#ffffff"),
-		SideColor:     lipgloss.Color("#ffffff"),
-		TitleColor:    lipgloss.Color("#ffffff"),
-		SideChar:      BorderSideThin,
-		CornorChar:    BorderCornorThick,
-		TitleSide:     "Center",
-		TitleBold:     true,
-		Width:         80,
-		Height:        0,
-		ConnectedSide: "",
-		Title:         "",
+		CornerColor:          lipgloss.Color("245"),
+		SideColor:            lipgloss.Color("240"),
+		TitleColor:           lipgloss.Color("255"),
+		TitleBackgroundColor: lipgloss.Color("240"),
+		SideChar:             BorderSideThin,
+		CornorChar:           BorderCornorThick,
+		TitleSide:            "Center",
+		TitleBold:            true,
+		Width:                80,
+		Height:               0,
+		ConnectedSide:        "",
+		Title:                "",
 	}
 
 	for _, opt := range opts {
 		opt(style)
 	}
 
-	return renderBorder(content, style)
+	// return renderBorder(content, style)
+	return &BorderRenderer{style: style}
 
+}
+
+func (br *BorderRenderer) Render(content string) string {
+	return renderBorder(content, br.style)
 }
 
 func renderBorder(content string, opt *BorderStyle) string {
 	cornerStyle := lipgloss.NewStyle().Foreground(opt.CornerColor)
 	sideStyle := lipgloss.NewStyle().Foreground(opt.SideColor)
-	titleStyle := lipgloss.NewStyle().Foreground(opt.TitleColor).Background(borderColorDark)
+	titleStyle := lipgloss.NewStyle().Foreground(opt.TitleColor)
 
 	topBorder := buildTopBorder(opt, cornerStyle, sideStyle, titleStyle)
 
@@ -202,17 +217,13 @@ func buildTopBorder(opt *BorderStyle, cornorStyle, sideStyle, titleStyle lipglos
 
 		horizontal = sideStyle.Render(strings.Repeat(opt.SideChar.Horizontal, max(1, rightDashes))+
 			leftCon) +
-			" " +
-			titleStyle.Render(opt.Title) +
-			" " +
+			titleStyle.Render(" "+opt.Title+" ") +
 			sideStyle.Render(rightCon+opt.SideChar.Horizontal)
 
 	case "Left":
 
 		horizontal = sideStyle.Render(opt.SideChar.Horizontal+leftCon) +
-			" " +
-			titleStyle.Render(opt.Title) +
-			" " +
+			titleStyle.Render(" "+opt.Title+" ") +
 			sideStyle.Render(rightCon+strings.Repeat(opt.SideChar.Horizontal, max(1, rightDashes)))
 
 	case "Center":
@@ -222,9 +233,7 @@ func buildTopBorder(opt *BorderStyle, cornorStyle, sideStyle, titleStyle lipglos
 
 		horizontal = sideStyle.Render(strings.Repeat(opt.SideChar.Horizontal,
 			max(1, leftDashes))+leftCon) +
-			// " " +
-			titleStyle.Render( " " + opt.Title + " ") +
-			// " " +
+			titleStyle.Render(" "+opt.Title+" ") +
 			sideStyle.Render(rightCon+strings.Repeat(opt.SideChar.Horizontal,
 				max(1, leftDashes+right)))
 
@@ -236,7 +245,7 @@ func buildTopBorder(opt *BorderStyle, cornorStyle, sideStyle, titleStyle lipglos
 		horizontal = sideStyle.Render(strings.Repeat(opt.SideChar.Horizontal,
 			max(1, leftDashes))+leftCon) +
 			// " " +
-			titleStyle.Render( " " + opt.Title + " ") +
+			titleStyle.Render(" "+opt.Title+" ") +
 			// " " +
 			sideStyle.Render(rightCon+strings.Repeat(opt.SideChar.Horizontal,
 				max(1, leftDashes+right)))
@@ -263,8 +272,17 @@ func buildMiddleContent(content string, opt *BorderStyle, sideStyle lipgloss.Sty
 
 	for _, line := range lines {
 
+		length := lipgloss.Width(line)
+
 		result.WriteString(leftVertical)
-		result.WriteString(line)
+
+		finalLine := line
+		if length != opt.Width {
+			finalLine = line + strings.Repeat(" ", max(0, opt.Width-length))
+
+		}
+		result.WriteString(finalLine)
+
 		result.WriteString(rightVertical)
 		result.WriteString("\n")
 
