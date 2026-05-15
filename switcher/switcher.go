@@ -125,7 +125,7 @@ func (m *Model) setSize(msgWidth, msgHeight int) {
 
 	widthOffset := 2
 	heightOffset := 2
-	width := (msgWidth - widthOffset) / 2
+	width := (msgWidth - widthOffset)
 	height := (msgHeight - verticalMarginHeight - heightOffset)
 
 	previewWidth := (msgWidth - (widthOffset + 3)) / 2
@@ -287,16 +287,17 @@ func (m Model) View() string {
 			WithTitle("Workspaces"),
 		)
 
-		previewBorderStyle := Border(
-			WithWidth(m.previewViewport.Width()),
-			WithHeight(m.previewViewport.Height()),
-			WithTitleColor(TitleColor),
-			WithTitle("Preview"),
-		)
+		// previewBorderStyle := Border(
+		// 	WithWidth(m.previewViewport.Width()),
+		// 	WithHeight(m.previewViewport.Height()),
+		// 	WithTitleColor(TitleColor),
+		// 	WithTitle("Preview"),
+		// )
 
 		left := lipgloss.JoinVertical(lipgloss.Left, m.headerView(), WorkspaceBorderStyle.Render(m.viewport.View()))
 
-		wrapper = lipgloss.JoinHorizontal(lipgloss.Left, left, previewBorderStyle.Render(m.previewView()))
+		// wrapper = lipgloss.JoinHorizontal(lipgloss.Left, left, previewBorderStyle.Render(m.previewView()))
+		wrapper = lipgloss.JoinHorizontal(lipgloss.Left, left)
 
 	}
 
