@@ -54,7 +54,7 @@ type weztermCliJson struct {
 }
 
 func GenerateSections() []Section {
-	// openWorkspaceList, err := getOpenWorkspaces()
+	openWorkspaceList, err := GetOpenWorkspaces()
 	configWorkspacesList, err := getConfigDirs()
 	personalWorkspaceList, err := fdSearch(filepath.Join("dev", "personal"))
 	schoolWorkspaceList, err := fdSearch(filepath.Join("dev", "school"))
@@ -63,32 +63,44 @@ func GenerateSections() []Section {
 		log.Fatal(err)
 	}
 
-	return []Section{
-		// {
-		// 	Title: "Open",
-		// 	Icon:  "",
-		// 	List:  openWorkspaceList,
-		// },
+	newSections := []Section{
+		{
+			Title: "Open",
+			Icon:  "",
+			List:  openWorkspaceList,
+		},
 		{
 			Title: "Configs",
 			Icon:  "",
 			List:  configWorkspacesList,
 		},
-		{
+	}
+
+	if len(personalWorkspaceList) != 0 {
+
+		list := Section{
 			Title: "Personal",
 			Icon:  "",
 			List:  personalWorkspaceList,
-		},
-		{
+		}
+
+		newSections = append(newSections, list)
+
+	}
+
+	if len(schoolWorkspaceList) != 0 {
+
+		list := Section{
 			Title: "School",
 			Icon:  "",
 			List:  schoolWorkspaceList,
-		},
-		// {
-		// 	Title: "Zoxide",
-		// 	List:  zoxideList,
-		// },
+		}
+
+		newSections = append(newSections, list)
+
 	}
+
+	return newSections
 }
 
 func getConfigDirs() ([]Workspace, error) {
@@ -98,9 +110,10 @@ func getConfigDirs() ([]Workspace, error) {
 	}
 
 	weztermDir := filepath.Join(home, ".config", "wezterm")
-	nvimDir := filepath.Join(home, "AppData", "Local", "nvim")
+	nvimDir := filepath.Join(home, ".config", "nvim")
+	nushell := filepath.Join(home, ".config", "nushell")
 
-	dirs := []string{weztermDir, nvimDir}
+	dirs := []string{weztermDir, nvimDir, nushell}
 
 	var wsl []Workspace
 
