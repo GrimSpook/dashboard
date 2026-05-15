@@ -27,12 +27,12 @@ func initModel() Model {
 
 	sw := switcher.New(l, ol, 70, 30)
 
-	tr := tracker.New()
+	// tr := tracker.New()
 
 	return Model{
 		state:    data.StateSwitcher,
 		switcher: sw,
-		tracker:  tr,
+		// tracker:  tr,
 	}
 }
 
