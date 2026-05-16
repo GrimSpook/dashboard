@@ -1,8 +1,22 @@
-# dashboard TUI for wezterm
+# Dashboard
 
-## WIP
+A terminal UI for managing and switching WezTerm workspaces.
 
-This is a TUI for switching workspaces in wezterm
+## Features
+- workspace switching
+- session overview
+- keyboard navigation
+- lightweight TUI interface
+
+## Stack
+- Go
+- Bubble Tea
+- WezTerm
+
+## Installation
+...
+
+## Demo
 
 ![image of dashboard tui app](./dashboard.png) 
 
